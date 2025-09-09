@@ -1,0 +1,53 @@
+name: Vendedor360 DataHub - Hourly
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *"  # run every hour
+
+jobs:
+  datahub:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      SHEET_NAME: Vendedor360_DataHub
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ github.workspace }}/data/service_account.json
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Write service account file from secret
+        run: |
+          mkdir -p data
+          echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > ${{ env.GOOGLE_SERVICE_ACCOUNT_JSON }}
+
+      - name: Update Inventario
+        run: |
+          python jobs/update_inventory.py
+
+      - name: Update Licitaciones
+        run: |
+          python jobs/update_bids.py
+
+      - name: Update Marketing
+        run: |
+          python jobs/update_marketing.py
+
+      - name: Commit logs/artifacts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "chore(actions): update datahub logs"
+            git push
