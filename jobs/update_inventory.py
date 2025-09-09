@@ -1,10 +1,10 @@
 # jobs/update_inventory.py
-import os
+iimport os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pandas as pd
 from app.gsheet_helper import upsert_tab
-
-SOURCE = os.getenv("INVENTARIO_SOURCE_CSV", "DataHub_Inventario.csv")
-
+)SOURCE = os.getenv("INVENTARIO_SOURCE_CSV", "DataHub_Inventario.csv")_SOURCE_CSV", "DataHub_Inventario.csv")
 OUT_COLS = ["sku","nombre","categoria","costo","precio","stock","stock_min","dias_sin_venta","url_imagen","proveedor"]
 
 def normalize(df: pd.DataFrame) -> pd.DataFrame:
