@@ -1,0 +1,46 @@
+# cloudbuild.front.yaml
+substitutions:
+  _PROJECT: "dashboardvendedor360"
+  _REGION: "southamerica-west1"
+  _REPO: "app-repo"
+  _SERVICE: "vendedor360-frontend"
+
+steps:
+  - name: "gcr.io/cloud-builders/npm"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        npm install
+        npm run build
+
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-t",
+        "${_REGION}-docker.pkg.dev/${_PROJECT}/${_REPO}/${_SERVICE}:$SHORT_SHA",
+        "."
+      ]
+
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "${_REGION}-docker.pkg.dev/${_PROJECT}/${_REPO}/${_SERVICE}:$SHORT_SHA"
+      ]
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        gcloud run deploy ${_SERVICE} \
+          --image=${_REGION}-docker.pkg.dev/${_PROJECT}/${_REPO}/${_SERVICE}:$SHORT_SHA \
+          --region=${_REGION} \
+          --platform=managed \
+          --allow-unauthenticated \
+          --set-env-vars=TZ=America/Santiago
+
+images:
+  - "${_REGION}-docker.pkg.dev/${_PROJECT}/${_REPO}/${_SERVICE}:$SHORT_SHA"
