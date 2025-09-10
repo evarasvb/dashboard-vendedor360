@@ -17,3 +17,4 @@ export default function KpiCard({ label, value, hint }: KpiCardProps) {
     </Card>
   );
 }
+
