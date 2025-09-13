@@ -3,7 +3,7 @@ name: Vendedor360 DataHub - Hourly
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 * * * *"  # run every hour
+    - cron: "0 * * * *" # run every hour
 
 jobs:
   datahub:
@@ -12,7 +12,8 @@ jobs:
       contents: write
     env:
       SHEET_NAME: Vendedor360_DataHub
-   GOOGLE_SERVICE_ACCOUNT_JSON:    ${{ runner.temp }}/service_account.json
+      # Guardamos la credencial en un directorio temporal para evitar que se suba al repo
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ runner.temp }}/service_account.json
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,6 +34,7 @@ jobs:
       - name: Update Inventario
         run: |
           python jobs/update_inventory.py
+
       - name: Update Licitaciones
         run: |
           python jobs/update_bids.py
@@ -43,14 +45,12 @@ jobs:
 
       - name: Commit logs/artifacts
         run: |
-      git config user.name "github-actions[bot]"
-      # Stage only logs and artifacts; avoid committing credentials or other files
-      git add logs/ || true
-      git add artifacts/ || true
-      if [ -n "$(git status --porcelain)" ]; then
-        git commit -m "chore(actions): update datahub logs"
-        git push
-      fi   fi     fifi commit -m "chore(actions): update datahub logs"
-      git push
-    fi    git push
-                fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Stage only logs and artifacts; avoid committing credentials or other files
+          git add logs/ || true
+          git add artifacts/ || true
+          if [ -n "$(git status --porcelain)" ]; then
+            git commit -m "chore(actions): update datahub logs"
+            git push
+          fi
