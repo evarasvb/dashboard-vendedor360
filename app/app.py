@@ -2,6 +2,14 @@ import streamlit as st
 from utils import read_sheet, kpi_value
 
 st.set_page_config(page_title="Dashboard Vendedor360", page_icon="D", layout="wide")
+
+# Carga la librería Tone.js para evitar errores de referencia en el navegador.
+st.markdown(
+    """
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
+    """,
+    unsafe_allow_html=True,
+)
 st.title("Dashboard Unificado - Vendedor360 (MVP)")
 
 inv = read_sheet("Inventario")
