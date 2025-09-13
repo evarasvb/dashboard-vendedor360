@@ -51,3 +51,4 @@ jobs:
             git add -A
             git commit -m "chore(actions): update datahub logs"
             git push
+          fi
