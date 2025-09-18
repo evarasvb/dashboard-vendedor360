@@ -1,0 +1,17 @@
+{
+  "login": {
+    "url": "https://senegocia.example.com/login",
+    "user": "input[name='email']",
+    "pass": "input[name='password']",
+    "submit": "button:has-text(\"Ingresar\")"
+  },
+  "search": {
+    "box": "input[placeholder='Buscar']",
+    "row": ".result-row",
+    "title": ".title",
+    "link": "a",
+    "apply": "button:has-text(\"Postular\")",
+    "apply_result_id": "#postulacion-id"
+  }
+}
+
