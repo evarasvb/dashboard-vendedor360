@@ -13,8 +13,8 @@ dashboard-vendedor360/
 │   ├── utils.py          # Conectores a Google Sheets
 │   └── pages/            # Subpáginas del dashboard
 │       ├── 1_📦_Inventario.py    # Inventario y SKUs sin rotación
-│       ├── 2_💍_Licitaciones.py   # Licitaciones enviadas/ganadas/perdidas
-│       ├── 3_🔣_Marketing.py      # Desempeño de campañas en redes
+│       ├── 2_📈_Licitaciones.py   # Licitaciones enviadas/ganadas/perdidas
+│       ├── 3_📣_Marketing.py      # Desempeño de campañas en redes
 │       └── 4_🤖_Sugerencias.py    # Recomendaciones automáticas
 ├── data/
 │   └── service_account.json      # Credenciales de la cuenta de servicio (no incluido)

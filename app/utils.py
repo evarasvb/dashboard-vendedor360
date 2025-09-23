@@ -11,7 +11,6 @@ load_dotenv()
 # Name of the Google Sheet to read from; can be set via environment variable
 SHEET_NAME = os.getenv("SHEET_NAME", "Vendedor360_DataHub")
 
-
 def _gc():
     """Return an authorized gspread client using a service account JSON."""
     scopes = [
@@ -21,7 +20,6 @@ def _gc():
     creds_path = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "data/service_account.json")
     creds = ServiceAccountCredentials.from_json_keyfile_name(creds_path, scopes)
     return gspread.authorize(creds)
-
 
 def read_sheet(tab_name: str) -> pd.DataFrame:
     """
@@ -46,7 +44,6 @@ def read_sheet(tab_name: str) -> pd.DataFrame:
     # Clean column names
     df.columns = [str(c).strip() for c in df.columns]
     return df
-
 
 def kpi_value(df: pd.DataFrame, col: str, agg: str = "sum"):
     """
