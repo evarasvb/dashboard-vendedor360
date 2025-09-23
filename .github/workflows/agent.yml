@@ -1,0 +1,145 @@
+name: Repo Agent
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: repo-agent-${{ github.event.issue.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  run:
+    if: startsWith(github.event.comment.body, '/agent ')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse command
+        id: cmd
+        run: |
+          set -Eeuo pipefail
+          FILE="${GITHUB_EVENT_PATH}"
+          BODY=$(jq -r '.comment.body' "$FILE")
+          ARG=${BODY#"/agent "}
+          echo "arg=$ARG" >> "$GITHUB_OUTPUT"
+
+      - name: Authorize commenter
+        id: auth
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const username = context.actor;
+            const { owner, repo } = context.repo;
+            try {
+              const { data } = await github.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username });
+              const perm = data.permission || 'none';
+              core.setOutput('permission', perm);
+              core.setOutput('authorized', ['admin','write','maintain'].includes(perm) ? 'true' : 'false');
+            } catch (e) {
+              core.setOutput('permission', 'none');
+              core.setOutput('authorized', 'false');
+            }
+
+      # 1) /agent run datahub
+      - name: Trigger DataHub
+        if: steps.cmd.outputs.arg == 'run datahub' && steps.auth.outputs.authorized == 'true'
+        run: |
+          set -Eeuo pipefail
+          REF="${{ github.ref_name || 'main' }}"
+          gh workflow run datahub.yml --ref "$REF" | cat
+
+      # 2) /agent release agilvb vX.Y.Z
+      - name: Setup Python
+        if: startsWith(steps.cmd.outputs.arg, 'release agilvb ') && steps.auth.outputs.authorized == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Release AgilVB to TestPyPI
+        if: startsWith(steps.cmd.outputs.arg, 'release agilvb ') && steps.auth.outputs.authorized == 'true'
+        run: |
+          set -Eeuo pipefail
+          TAG=$(echo "${{ steps.cmd.outputs.arg }}" | awk '{print $3}')
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade build twine
+          python -m build
+          twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u "${TESTPYPI_USERNAME}" -p "${TESTPYPI_PASSWORD}"
+          echo "Released ${TAG} to TestPyPI"
+        env:
+          TESTPYPI_USERNAME: ${{ secrets.TESTPYPI_USERNAME }}
+          TESTPYPI_PASSWORD: ${{ secrets.TESTPYPI_PASSWORD }}
+
+      # 3) /agent bootstrap planning
+      - name: Bootstrap planning (issues base)
+        if: steps.cmd.outputs.arg == 'bootstrap planning' && steps.auth.outputs.authorized == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = [
+              '- [ ] QA: Workflow DataHub estable',
+              '- [ ] Telemetría mínima de jobs',
+              '- [ ] Programar corridas y alertas'
+            ].join('\n');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Plan: arrancar backlog',
+              body
+            });
+
+      # 4) /agent connect dashboard
+      - name: Setup Python (dashboard)
+        if: steps.cmd.outputs.arg == 'connect dashboard' && steps.auth.outputs.authorized == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python deps
+        if: steps.cmd.outputs.arg == 'connect dashboard' && steps.auth.outputs.authorized == 'true'
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --upgrade pip
+          pip install gspread google-auth pandas
+
+      - name: Open PR to wire dashboard to Sheets
+        if: steps.cmd.outputs.arg == 'connect dashboard' && steps.auth.outputs.authorized == 'true'
+        run: |
+          set -Eeuo pipefail
+          git config user.name "repo-agent"
+          git config user.email "repo-agent@users.noreply.github.com"
+          BRANCH="feat/connect-sheets-${GITHUB_RUN_ID}"
+          git checkout -b "$BRANCH"
+          mkdir -p app
+          cat > app/data_source.py <<'PY'
+import os
+import gspread
+import pandas as pd
+from google.oauth2.service_account import Credentials
+
+SHEET_NAME = os.getenv('SHEET_NAME', 'Vendedor360_DataHub')
+
+def fetch(tab: str) -> pd.DataFrame:
+    scopes = [
+        'https://www.googleapis.com/auth/spreadsheets.readonly',
+        'https://www.googleapis.com/auth/drive.readonly',
+    ]
+    keyfile = os.environ['GOOGLE_SERVICE_ACCOUNT_JSON']
+    credentials = Credentials.from_service_account_file(keyfile, scopes=scopes)
+    client = gspread.authorize(credentials)
+    worksheet = client.open(SHEET_NAME).worksheet(tab)
+    return pd.DataFrame(worksheet.get_all_records())
+PY
+          git add -A
+          git commit -m "feat(dashboard): connect to Google Sheets via data_source.py"
+          git push -u origin "$BRANCH"
+          gh pr create --title "Connect dashboard to Sheets" --body "Adds data_source.py and wiring." --base main --head "$BRANCH" | cat
